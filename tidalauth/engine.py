@@ -6,7 +6,7 @@ from playwright.sync_api import FrameLocator, Locator, Page, Playwright, expect,
 from pydantic import SecretStr
 
 from tidalauth.settings import TidalauthSettings
-from tidalauth.utils import SelectorType, Status, get_logger, report_status, retry_with_backoff
+from tidalauth.utils import USER_AGENT, SelectorType, Status, get_logger, report_status, retry_with_backoff
 
 logger = get_logger(__name__)
 
@@ -21,30 +21,37 @@ class PlaywrightEngine:
 
     def setup(self) -> None:
         """
-        Initialize the Playwright environment
+        Initialize the Playwright environment with anti-detection measures
         """
         self._playwright = sync_playwright().start()
+
+        # Browser
         browser_instance = getattr(self._playwright, self._settings.browser_type)
         browser = browser_instance.launch(headless=self._settings.headless)
         self._browser = browser
 
+        # Context
         context_options = {
             "viewport": {"width": self._settings.viewport_width, "height": self._settings.viewport_height},
             "ignore_https_errors": True,
+            "user_agent": USER_AGENT,
+            "locale": "en-US",
+            "timezone_id": "UTC",
         }
 
         if self._settings.take_video:
             self._settings.video_dir.mkdir(parents=True, exist_ok=True)
-
             context_options |= {
                 "record_video_dir": self._settings.video_dir,
                 "record_video_size": {"width": self._settings.viewport_width, "height": self._settings.viewport_height},
             }
-
         context = browser.new_context(**context_options)
         context.set_default_timeout(self._settings.timeout_ms)
-        self._page = context.new_page()
         self._context = context
+
+        # Page
+        page = context.new_page()
+        self._page = page
 
     def teardown(self) -> None:
         """

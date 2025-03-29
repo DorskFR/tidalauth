@@ -3,7 +3,7 @@ import sentry_sdk
 
 from tidalauth.engine import PlaywrightEngine
 from tidalauth.settings import TidalauthSettings
-from tidalauth.utils import get_logger
+from tidalauth.utils import USER_AGENT, get_logger
 
 
 def main() -> None:
@@ -24,15 +24,17 @@ def main() -> None:
 
     # Call Tidalidarr's /auth
     base_url = f"{settings.tidalidarr_url}".removesuffix("/")
-    response = requests.get(f"{base_url}/auth", timeout=60)
+    response = requests.get(f"{base_url}/auth", headers={"User-Agent": USER_AGENT}, timeout=60)
     response.raise_for_status()
     content = response.text
 
     if "https://link.tidal.com" not in content:
-        logger.info("Authentication does not seem required")
+        logger.info("Authorization does not seem required")
         return
 
     authorization_url = content.strip()
+    logger.info(f"Authorization is required, URL: {authorization_url}")
+
     engine.navigate(authorization_url)
 
 
